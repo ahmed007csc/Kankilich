@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { FighterData } from './HumanFighter';
 import { ArrowLeft } from 'lucide-react';
+import { BotDifficulty } from '../App';
 
 interface CharacterSelectProps {
-  onSelectComplete: (player1: FighterData, player2: FighterData, isBotMode: boolean) => void;
+  onSelectComplete: (player1: FighterData, player2: FighterData, isBotMode: boolean, difficulty: BotDifficulty) => void;
   initialBotMode?: boolean;
   onBack?: () => void;
 }
@@ -68,10 +69,11 @@ export function CharacterSelect({ onSelectComplete, initialBotMode = false, onBa
   const [selectedP1, setSelectedP1] = useState<FighterData | null>(null);
   const [selectedP2, setSelectedP2] = useState<FighterData | null>(null);
   const [isBotMode, setIsBotMode] = useState(initialBotMode);
+  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('medium');
 
   const handleStart = () => {
     if (selectedP1 && selectedP2) {
-      onSelectComplete(selectedP1, selectedP2, isBotMode);
+      onSelectComplete(selectedP1, selectedP2, isBotMode, botDifficulty);
     }
   };
 
@@ -183,6 +185,55 @@ export function CharacterSelect({ onSelectComplete, initialBotMode = false, onBa
       >
         {isBotMode ? '🤖 РЕЖИМ ПРОТИВ БОТА' : '👥 РЕЖИМ 2 ИГРОКОВ'}
       </motion.button>
+
+      {/* Difficulty Selection */}
+      {isBotMode && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 relative z-10"
+        >
+          <h3 className="text-2xl font-bold text-yellow-300 mb-4 text-center">СЛОЖНОСТЬ БОТА</h3>
+          <div className="flex gap-4 justify-center">
+            <motion.button
+              onClick={() => setBotDifficulty('easy')}
+              className={`px-6 py-3 text-lg font-bold rounded-xl border-4 transition-all ${
+                botDifficulty === 'easy'
+                  ? 'border-green-400 bg-green-900 text-green-300 shadow-lg shadow-green-400/50'
+                  : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-400'
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              😊 ЛЕГКИЙ
+            </motion.button>
+            <motion.button
+              onClick={() => setBotDifficulty('medium')}
+              className={`px-6 py-3 text-lg font-bold rounded-xl border-4 transition-all ${
+                botDifficulty === 'medium'
+                  ? 'border-yellow-400 bg-yellow-900 text-yellow-300 shadow-lg shadow-yellow-400/50'
+                  : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-400'
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              😐 СРЕДНИЙ
+            </motion.button>
+            <motion.button
+              onClick={() => setBotDifficulty('hard')}
+              className={`px-6 py-3 text-lg font-bold rounded-xl border-4 transition-all ${
+                botDifficulty === 'hard'
+                  ? 'border-red-400 bg-red-900 text-red-300 shadow-lg shadow-red-400/50'
+                  : 'border-gray-600 bg-gray-800 text-gray-400 hover:border-gray-400'
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              😈 СЛОЖНЫЙ
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Start Button */}
       <motion.button

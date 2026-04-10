@@ -4,12 +4,14 @@ import { HumanFighter, FighterData } from './HumanFighter';
 import { HealthBar } from './HealthBar';
 import { Controls } from './Controls';
 import { Trophy, RotateCcw } from 'lucide-react';
+import { BotDifficulty } from '../App';
 
 interface FightArenaProps {
   player1: FighterData;
   player2: FighterData;
   onRestart: () => void;
   isBotMode: boolean;
+  botDifficulty?: BotDifficulty;
 }
 
 const MAX_HEALTH = 200; // Increased HP
@@ -23,7 +25,7 @@ const ENERGY_GAIN_PER_HIT = 15;
 const ENERGY_GAIN_PER_DAMAGE = 10;
 const ULTIMATE_COST = 100;
 
-export function FightArena({ player1, player2, onRestart, isBotMode }: FightArenaProps) {
+export function FightArena({ player1, player2, onRestart, isBotMode, botDifficulty = 'medium' }: FightArenaProps) {
   const [health1, setHealth1] = useState(MAX_HEALTH);
   const [health2, setHealth2] = useState(MAX_HEALTH);
   const [energy1, setEnergy1] = useState(0);
@@ -62,11 +64,69 @@ export function FightArena({ player1, player2, onRestart, isBotMode }: FightAren
   const lastAttack1 = useRef(0);
   const lastAttack2 = useRef(0);
   const botThinkTimer = useRef(0);
+  const lastPlayerAttack = useRef(0);
+
+  // Bot difficulty settings
+  const getBotSettings = () => {
+    switch (botDifficulty) {
+      case 'easy':
+        return {
+          reactionTime: 500,
+          attackChance: 0.4,
+          kickChance: 0.6,
+          specialChance: 0.2,
+          ultimateChance: 0.1,
+          blockChance: 0.3,
+          dodgeChance: 0.2,
+          jumpChance: 0.1,
+          aggressionLevel: 0.6,
+          distanceManagement: 0.8,
+          predictionAbility: 0.2,
+        };
+      case 'medium':
+        return {
+          reactionTime: 250,
+          attackChance: 0.6,
+          kickChance: 0.8,
+          specialChance: 0.8,
+          ultimateChance: 0.3,
+          blockChance: 0.8,
+          dodgeChance: 0.5,
+          jumpChance: 0.3,
+          aggressionLevel: 0.85,
+          distanceManagement: 0.9,
+          predictionAbility: 0.4,
+        };
+      case 'hard':
+        return {
+          reactionTime: 100,
+          attackChance: 0.8,
+          kickChance: 0.95,
+          specialChance: 0.95,
+          ultimateChance: 0.5,
+          blockChance: 0.95,
+          dodgeChance: 0.85,
+          jumpChance: 0.7,
+          aggressionLevel: 0.95,
+          distanceManagement: 0.98,
+          predictionAbility: 0.9,
+        };
+    }
+  };
+
+  const botSettings = getBotSettings();
 
   // Calculate distance between fighters
   const getDistance = () => {
     return Math.abs(position2 - position1);
   };
+
+  // Track player attacking for prediction
+  useEffect(() => {
+    if (isAttacking1 || isKicking1 || isSpecial1) {
+      lastPlayerAttack.current = Date.now();
+    }
+  }, [isAttacking1, isKicking1, isSpecial1]);
 
   // Bot AI
   useEffect(() => {
@@ -75,40 +135,95 @@ export function FightArena({ player1, player2, onRestart, isBotMode }: FightAren
     const botAI = setInterval(() => {
       const distance = getDistance();
       const now = Date.now();
+      const timeSincePlayerAttack = now - lastPlayerAttack.current;
 
       // Stop all movements first
       setMovingLeft2(false);
       setMovingRight2(false);
 
-      // Decision making
-      if (distance > ATTACK_RANGE + 50) {
-        // Too far, move closer
-        setMovingLeft2(true);
-      } else if (distance < ATTACK_RANGE - 50) {
-        // Too close, move back
-        setMovingRight2(true);
-      } else {
-        // In range, decide action
-        const action = Math.random();
-        
-        // Use ultimate if available
-        if (energy2 >= ULTIMATE_COST && action < 0.15) {
-          handleUltimate(2);
-        } else if (action < 0.3 && now - lastAttack2.current > ATTACK_COOLDOWN) {
-          // Attack
-          handleAttack(2, 10);
-        } else if (action < 0.5 && now - lastAttack2.current > ATTACK_COOLDOWN) {
-          // Kick
-          handleAttack(2, 12, false, true);
-        } else if (action < 0.6 && now - lastAttack2.current > ATTACK_COOLDOWN + 1000) {
-          // Special attack
-          handleAttack(2, 25, true);
-        } else if (action < 0.75) {
-          // Block
+      // Check if player is attacking and bot can predict
+      const playerIsAttacking = isAttacking1 || isKicking1 || isSpecial1;
+      const canPredict = Math.random() < botSettings.predictionAbility;
+
+      // DEFENSIVE REACTIONS (hard bot reacts to player attacks)
+      if (playerIsAttacking && distance <= ATTACK_RANGE && canPredict) {
+        const defensiveAction = Math.random();
+
+        if (defensiveAction < botSettings.dodgeChance) {
+          handleDodge(2);
+          return;
+        } else if (defensiveAction < botSettings.dodgeChance + botSettings.jumpChance) {
+          handleJump(2);
+          return;
+        } else if (defensiveAction < botSettings.dodgeChance + botSettings.jumpChance + botSettings.blockChance) {
           setIsBlocking2(true);
-          setTimeout(() => setIsBlocking2(false), 800);
-        } else {
-          // Random movement
+          setTimeout(() => setIsBlocking2(false), 600);
+          return;
+        }
+      }
+
+      // DISTANCE MANAGEMENT
+      const optimalDistance = ATTACK_RANGE - 30; // Slightly inside attack range
+      const distanceQuality = Math.random() < botSettings.distanceManagement;
+
+      if (distanceQuality) {
+        // Smart distance management
+        if (distance > optimalDistance + 80) {
+          setMovingLeft2(true);
+        } else if (distance < optimalDistance - 80) {
+          setMovingRight2(true);
+        }
+      } else {
+        // Simple distance check (for easier bots)
+        if (distance > ATTACK_RANGE + 100) {
+          setMovingLeft2(true);
+        } else if (distance < ATTACK_RANGE - 100) {
+          setMovingRight2(true);
+        }
+      }
+
+      // OFFENSIVE ACTIONS (when in range)
+      if (distance <= ATTACK_RANGE + 50) {
+        const action = Math.random();
+        const healthRatio = health2 / MAX_HEALTH;
+        const isLowHealth = healthRatio < 0.3;
+        const isPlayerLowHealth = health1 / MAX_HEALTH < 0.3;
+
+        // Adjust aggression based on health
+        const aggressionModifier = isLowHealth ? 0.7 : isPlayerLowHealth ? 1.3 : 1;
+        const effectiveAggression = botSettings.aggressionLevel * aggressionModifier;
+
+        // Use ultimate if available and conditions are right
+        if (energy2 >= ULTIMATE_COST && action < botSettings.ultimateChance * 1.5) {
+          handleUltimate(2);
+        }
+        // Special attack
+        else if (action < botSettings.specialChance && now - lastAttack2.current > ATTACK_COOLDOWN + 800) {
+          handleAttack(2, 25, true);
+        }
+        // Kick
+        else if (action < botSettings.specialChance + botSettings.kickChance && now - lastAttack2.current > ATTACK_COOLDOWN) {
+          handleAttack(2, 12, false, true);
+        }
+        // Normal attack
+        else if (action < botSettings.specialChance + botSettings.kickChance + botSettings.attackChance && now - lastAttack2.current > ATTACK_COOLDOWN) {
+          handleAttack(2, 10);
+        }
+        // Block (especially when player just attacked)
+        else if (action < botSettings.specialChance + botSettings.kickChance + botSettings.attackChance + botSettings.blockChance && timeSincePlayerAttack < 1000) {
+          setIsBlocking2(true);
+          setTimeout(() => setIsBlocking2(false), 700);
+        }
+        // Dodge
+        else if (action < botSettings.specialChance + botSettings.kickChance + botSettings.attackChance + botSettings.blockChance + botSettings.dodgeChance) {
+          handleDodge(2);
+        }
+        // Jump
+        else if (action < botSettings.specialChance + botSettings.kickChance + botSettings.attackChance + botSettings.blockChance + botSettings.dodgeChance + botSettings.jumpChance) {
+          handleJump(2);
+        }
+        // Random movement for unpredictability
+        else if (action > 0.85) {
           if (Math.random() < 0.5) {
             setMovingLeft2(true);
           } else {
@@ -116,10 +231,22 @@ export function FightArena({ player1, player2, onRestart, isBotMode }: FightAren
           }
         }
       }
-    }, 500);
+      // OUT OF RANGE BEHAVIOR
+      else {
+        // Occasionally use defensive moves even out of range (creates unpredictability)
+        if (Math.random() < 0.1) {
+          const randomAction = Math.random();
+          if (randomAction < 0.33) {
+            handleJump(2);
+          } else if (randomAction < 0.66) {
+            handleDodge(2);
+          }
+        }
+      }
+    }, botSettings.reactionTime);
 
     return () => clearInterval(botAI);
-  }, [isBotMode, winner, position1, position2, energy2]);
+  }, [isBotMode, winner, position1, position2, energy2, health1, health2, isAttacking1, isKicking1, isSpecial1, botDifficulty]);
 
   // Movement loop
   useEffect(() => {
@@ -473,7 +600,12 @@ export function FightArena({ player1, player2, onRestart, isBotMode }: FightAren
         </motion.div>
 
         <div className="flex flex-col gap-2">
-          <HealthBar health={health2} maxHealth={MAX_HEALTH} playerName={isBotMode ? `БОТ ${player2.name}` : player2.name} isPlayer1={false} />
+          <HealthBar
+            health={health2}
+            maxHealth={MAX_HEALTH}
+            playerName={isBotMode ? `БОТ ${player2.name} ${botDifficulty === 'easy' ? '😊' : botDifficulty === 'hard' ? '😈' : '😐'}` : player2.name}
+            isPlayer1={false}
+          />
           {/* Energy Bar Player 2 */}
           <div className="w-64">
             <motion.div
@@ -503,12 +635,34 @@ export function FightArena({ player1, player2, onRestart, isBotMode }: FightAren
         </div>
       </div>
 
-      {/* Distance indicator (debug) */}
-      <div className="absolute top-32 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-lg z-20">
-        <p className="text-white text-sm">
-          Дистанция: {Math.round(getDistance())} / {ATTACK_RANGE} 
-          {getDistance() <= ATTACK_RANGE && <span className="text-green-400 ml-2">✓ В радиусе атаки</span>}
-        </p>
+      {/* Distance and Difficulty indicator */}
+      <div className="absolute top-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20">
+        <div className="bg-black/60 px-4 py-2 rounded-lg">
+          <p className="text-white text-sm">
+            Дистанция: {Math.round(getDistance())} / {ATTACK_RANGE}
+            {getDistance() <= ATTACK_RANGE && <span className="text-green-400 ml-2">✓ В радиусе атаки</span>}
+          </p>
+        </div>
+        {isBotMode && (
+          <motion.div
+            className={`px-4 py-2 rounded-lg border-2 ${
+              botDifficulty === 'easy'
+                ? 'bg-green-900/80 border-green-400 text-green-300'
+                : botDifficulty === 'hard'
+                ? 'bg-red-900/80 border-red-400 text-red-300'
+                : 'bg-yellow-900/80 border-yellow-400 text-yellow-300'
+            }`}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <p className="text-sm font-bold">
+              {botDifficulty === 'easy' && '😊 ЛЕГКИЙ'}
+              {botDifficulty === 'medium' && '😐 СРЕДНИЙ'}
+              {botDifficulty === 'hard' && '😈 СЛОЖНЫЙ'}
+            </p>
+          </motion.div>
+        )}
       </div>
 
       {/* Fight Arena */}
