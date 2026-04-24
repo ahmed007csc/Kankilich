@@ -15,7 +15,7 @@ interface FightArenaProps {
 }
 
 const MAX_HEALTH = 200; // Increased HP
-const ROUND_TIME = 99;
+const ROUND_TIME = 60; // 60 seconds battle timer
 const ATTACK_COOLDOWN = 500;
 const ATTACK_RANGE = 350; // Increased attack range
 const MOVE_SPEED = 10;
@@ -588,15 +588,45 @@ export function FightArena({ player1, player2, onRestart, isBotMode, botDifficul
           </div>
         </div>
         
-        {/* Timer */}
+        {/* Timer - Улучшенный */}
         <motion.div
-          className="bg-black/80 border-4 border-yellow-600 rounded-full w-24 h-24 flex items-center justify-center"
-          animate={{ scale: timer <= 10 ? [1, 1.1, 1] : 1 }}
-          transition={{ repeat: timer <= 10 ? Infinity : 0, duration: 0.5 }}
+          className={`rounded-2xl w-40 h-40 flex flex-col items-center justify-center shadow-2xl ${
+            timer <= 10
+              ? 'bg-gradient-to-br from-red-600 to-red-900 border-4 border-red-400'
+              : timer <= 30
+                ? 'bg-gradient-to-br from-orange-600 to-orange-900 border-4 border-orange-400'
+                : 'bg-gradient-to-br from-yellow-600 to-yellow-900 border-4 border-yellow-400'
+          }`}
+          animate={{
+            scale: timer <= 10 ? [1, 1.15, 1] : timer <= 30 ? [1, 1.05, 1] : 1,
+            rotate: timer <= 10 ? [0, -2, 2, 0] : 0
+          }}
+          transition={{
+            repeat: timer <= 30 ? Infinity : 0,
+            duration: timer <= 10 ? 0.3 : 0.6
+          }}
         >
-          <p className={`text-4xl font-bold ${timer <= 10 ? 'text-red-500' : 'text-yellow-400'}`}>
+          <p className="text-2xl font-bold text-white/80 tracking-wider">ВРЕМЯ</p>
+          <p className={`text-7xl font-bold ${
+            timer <= 10 ? 'text-white animate-pulse' : 'text-white'
+          }`}
+            style={{
+              textShadow: timer <= 10
+                ? '0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,0,0,0.6)'
+                : '0 0 10px rgba(255,255,255,0.5)'
+            }}
+          >
             {timer}
           </p>
+          {timer <= 10 && (
+            <motion.p
+              className="text-lg font-bold text-white mt-1"
+              animate={{ opacity: [1, 0.5, 1] }}
+              transition={{ repeat: Infinity, duration: 0.5 }}
+            >
+              ⚠️ ФИНИШ ⚠️
+            </motion.p>
+          )}
         </motion.div>
 
         <div className="flex flex-col gap-2">
